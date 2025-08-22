@@ -1,0 +1,30 @@
+{
+	"azure_agent": {
+		"env_file_path": ".env",
+		"system_message": "you are an expert and help find answers. you have tools, and can use them",
+		"servers": {
+			"ff_tools": {
+				"url": "http://192.168.86.103:8000/mcp",
+				"type": "http"
+			}
+		},
+		"inputs": []
+	},
+	"Ollama_agent": {
+		"deployment_name": "gpt-oss:20b",
+		"endpoint": "http://ollama.home",
+		"system_message": "you are an expert and help find answers. you have tools, and can use them",
+		"servers": {
+			"ff_tools": {
+				"url": "http://192.168.86.103:8000/mcp",
+				"type": "http"
+			},
+			"sql_tools": {
+				"url": "https://somesseserver.azurewebsites.us/sse",
+				"type": "http",
+				"Comment": "this will fail to connect, because the server isnt real.  The agent will be created without these tools"
+			}
+		},
+		"inputs": []
+	}
+}

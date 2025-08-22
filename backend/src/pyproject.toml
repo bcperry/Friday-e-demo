@@ -1,0 +1,16 @@
+[project]
+name = "semantic-kernel-mcp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.116.1",
+    "ollama>=0.5.3",
+    "semantic-kernel[mcp]>=1.35.3",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.30.1",
+]
