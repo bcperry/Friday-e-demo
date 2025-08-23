@@ -119,7 +119,6 @@ class Agent:
                 except Exception as e:
                     logging.error(f"Error connecting to {server_name} MCP server: {e}")
 
-
     @classmethod
     async def create(cls, agent_definition: dict):
         """Async factory that constructs an Agent and awaits MCP plugin setup.
@@ -135,7 +134,7 @@ class Agent:
         await inst._setup_mcp_plugins(servers_to_setup)
         return inst
 
-    async def run_agent(self, userInput: str, streaming: bool = False):
+    async def run_agent(self, userInput: str):
 
         # Add user input to the history
         self.history.add_user_message(userInput)
@@ -171,8 +170,7 @@ class Agent:
                             message = message + 1
                             thoughts = 0
                             tools = 0
-                            if streaming: yield str("\n--- Agent Message ---")
-                        if streaming: yield str(chunk.content)
+                            
                         # accumulate a best-effort message representation
 
                         if chunk.inner_content is not None:
@@ -199,7 +197,6 @@ class Agent:
                             tools = tools + len(chunk.items)
                             message = 0
                             thoughts = 0
-                            if streaming: yield str("\n--- Agent Tools ---")
                         tool_calls = chunk.items
                         for tool in tool_calls:
                             if tool.content_type == "function_result":
@@ -223,10 +220,8 @@ class Agent:
                             thoughts = thoughts + 1
                             tools = 0
                             message = 0
-                            if streaming: yield str("\n--- Agent Thoughts ---")
                         thinking = chunk.inner_content['message'].thinking
                         # preserve if streaming: yield str behavior
-                        if streaming: yield str(thinking)
                         # accumulate
                         try:
                             full_response['thoughts'].append(str(thinking))
@@ -239,11 +234,8 @@ class Agent:
                             tools = tools + 1
                             message = 0
                             thoughts = 0
-                            if streaming: yield str("\n--- Agent Tools ---")
                         tool_calls = chunk.inner_content['message'].tool_calls
                         for tool in tool_calls:
-                            if streaming: yield str(f"Tool: {tool.function.name}")
-                            if streaming: yield str(f"Arguments: {tool.function.arguments}")
                             # accumulate
                             try:
                                 full_response['tool_calls'].append({tool.function.name: tool.function.arguments})
@@ -255,8 +247,6 @@ class Agent:
                             message = message + 1
                             thoughts = 0
                             tools = 0
-                            if streaming: yield str("\n--- Agent Message ---")
-                        if streaming: yield str(chunk)
                         # accumulate a best-effort message representation
 
                         if chunk.inner_content is not None:
@@ -295,9 +285,167 @@ class Agent:
             # Best-effort cleanup; ignore errors
             logging.exception(f"The chat message processing failed. {e}")
 
-        if not streaming:
-            yield str(full_response)
-            # return full_response
+        return full_response
+
+    async def run_agent_stream(self, userInput: str):
+
+        # Add user input to the history
+        self.history.add_user_message(userInput)
+
+        # Accumulate content so we can add a single message to history at the end
+        full_response = {
+            "thoughts": [],
+            "tool_calls": [],
+            "messages": []
+        }
+
+        try:
+            logging.info(f"Running agent with user input: {userInput}")
+            for server in self.mcp_server_objects:
+                await server.connect()
+            response = self.chat_completion.get_streaming_chat_message_content(
+                messages=userInput,
+                chat_history=self.history,
+                settings=self.execution_settings,
+                kernel=self.kernel,
+            )
+
+            thoughts = 0
+            tools = 0
+            message = 0
+
+            async for chunk in response:
+                if isinstance(self.chat_completion, AzureChatCompletion):
+
+                                        # messages
+                    if "message" in chunk.content_type and len(chunk.content) > 0:
+                        if message == 0:
+                            message = message + 1
+                            thoughts = 0
+                            tools = 0
+                            yield str("\n--- Agent Message ---")
+                        yield str(chunk.content)
+                        # accumulate a best-effort message representation
+
+                        if chunk.inner_content is not None:
+                            full_response['messages'].append(str(chunk.content))
+                    #  # thoughts
+                    # if "thoughts" in chunk.tag:
+                    #     if thoughts == 0:
+                    #         thoughts = thoughts + 1
+                    #         tools = 0
+                    #         message = 0
+                    #         yield str("\n--- Agent Thoughts ---")
+                    #     thinking = chunk.inner_content['message'].thinking
+                    #     # preserve yield str behavior
+                    #     yield str(thinking)
+                    #     # accumulate
+                    #     try:
+                    #         full_response['thoughts'].append(str(thinking))
+                    #     except Exception:
+                    #         full_response['thoughts'].append(repr(thinking))
+
+                    # tools
+                    elif len(chunk.items) > 0:
+                        if tools == 0:
+                            tools = tools + len(chunk.items)
+                            message = 0
+                            thoughts = 0
+                            yield str("\n--- Agent Tools ---")
+                        tool_calls = chunk.items
+                        for tool in tool_calls:
+                            if tool.content_type == "function_result":
+                                try:
+                                    full_response['tool_calls'].append(tool.inner_content)
+                                except Exception as e:
+                                    logging.error("Error occurred while processing tool calls: %s", e)
+                    else:
+                        if chunk.finish_reason == 'tool_calls':
+                            # This is a special case where the Azure Chat Completion API returns a tool call
+                            # as a separate chunk with no content, so we skip it.
+                            continue
+                        else:
+                            logging.debug("somehow made it here: ", chunk)
+
+                
+                else: # Ollama Chat Completion
+                    # thoughts
+                    if chunk.inner_content is not None and chunk.inner_content.get('message') is not None and chunk.inner_content['message'].thinking is not None:
+                        if thoughts == 0:
+                            thoughts = thoughts + 1
+                            tools = 0
+                            message = 0
+                            yield str("\n--- Agent Thoughts ---")
+                        thinking = chunk.inner_content['message'].thinking
+                        # preserve yield str behavior
+                        yield str(thinking)
+                        # accumulate
+                        try:
+                            full_response['thoughts'].append(str(thinking))
+                        except Exception:
+                            full_response['thoughts'].append(repr(thinking))
+
+                    # tools
+                    elif chunk.inner_content is not None and chunk.inner_content.get('message') is not None and chunk.inner_content['message'].tool_calls is not None:
+                        if tools == 0:
+                            tools = tools + 1
+                            message = 0
+                            thoughts = 0
+                            yield str("\n--- Agent Tools ---")
+                        tool_calls = chunk.inner_content['message'].tool_calls
+                        for tool in tool_calls:
+                            yield str(f"Tool: {tool.function.name}")
+                            yield str(f"Arguments: {tool.function.arguments}")
+                            # accumulate
+                            try:
+                                full_response['tool_calls'].append({tool.function.name: tool.function.arguments})
+                            except Exception:
+                                full_response['tool_calls'].append({"generic": str(tool_calls)})
+                    # messages
+                    elif len(chunk.content) > 0:
+                        if message == 0:
+                            message = message + 1
+                            thoughts = 0
+                            tools = 0
+                            yield str("\n--- Agent Message ---")
+                        yield str(chunk)
+                        # accumulate a best-effort message representation
+
+                        if chunk.inner_content is not None:
+                            full_response['messages'].append(str(chunk.content))
+
+
+
+
+            # Reconstruct a single assistant message from the accumulated pieces
+            assistant_parts = []
+            if full_response.get('thoughts'):
+                full_response['thoughts'] = "".join(full_response['thoughts'])
+                assistant_parts.append("\n".join(full_response['thoughts']))
+            if full_response.get('messages'):
+                full_response['messages'] = "".join(full_response['messages'])
+                assistant_parts.append("\n".join(full_response['messages']))
+            if full_response.get('tool_calls'):
+                # represent tool calls as a stringified list/dict
+                assistant_parts.append(str(full_response['tool_calls']))
+
+            assistant_text = "\n\n".join([p for p in assistant_parts if p]).strip()
+            if assistant_text:
+                # Try to add as an assistant message; fall back to system message if method isn't available
+                try:
+                    self.history.add_assistant_message(assistant_text)
+                except Exception:
+                    self.history.add_system_message(assistant_text)
+            for server in self.mcp_server_objects:
+                # Attempt to close the server connection gracefully
+                try:
+                    logging.info(f"Closing MCP server connection: {server.name}")
+                    await server.close()
+                except Exception as e:
+                    logging.exception(f"Failed to close server connection: {e}")
+        except Exception as e:
+            # Best-effort cleanup; ignore errors
+            logging.exception(f"The chat message processing failed. {e}")
 
     def _setup_chat_completion(self, agent_definition):
         """Setup the chat completion service based on agent definition."""

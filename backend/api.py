@@ -52,7 +52,7 @@ router = APIRouter(prefix="/api")
 
 
 # API Routes
-@router.get("/api/health")
+@router.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "message": "Backend is running"}
@@ -62,6 +62,11 @@ class QueryRequest(BaseModel):
 # Create enum from agents list
 AgentName = Enum('AgentName', {agent: agent for agent in agents})
 
+
+@router.get("/agents", response_model=list[str])
+async def get_agents():
+    """Get list of available agents"""
+    return agents
 
 @router.post("/agent")
 async def agent_endpoint(request: QueryRequest, agent_name: AgentName = AgentName(agents[0])):
@@ -75,10 +80,8 @@ async def agent_endpoint(request: QueryRequest, agent_name: AgentName = AgentNam
     agent = await Agent.create(agent_definition[agent_name.value])
 
     logging.info(f"Agent created: {agent_name.value}")
-
-    return StreamingResponse(agent.run_agent(request.query, streaming=False), media_type="text/plain")
-
-
+    result = await agent.run_agent(request.query)
+    return result
 
 
 @router.post("/agent_stream")
@@ -94,15 +97,16 @@ async def stream_response(request: QueryRequest, agent_name: AgentName = AgentNa
 
     logging.info(f"Agent created: {agent_name.value}")
 
-    return StreamingResponse(agent.run_agent(request.query, streaming=True), media_type="text/plain")
+    return StreamingResponse(agent.run_agent_stream(request.query), media_type="text/plain")
 
+
+# Include API routes BEFORE mounting the SPA so /api/* isn't shadowed by StaticFiles at "/".
+app.include_router(router)
 
 # Mount static files for SPA
 if STATIC_DIR.exists():
     # Serve the React app from the static directory
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="spa")
-
-app.include_router(router)
 
 
 if __name__ == "__main__":
