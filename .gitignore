@@ -11,3 +11,5 @@ wheels/
 
 .env
 agent_definition.json
+
+*/static

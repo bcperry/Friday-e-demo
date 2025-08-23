@@ -1,12 +1,25 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv, find_dotenv
+from pathlib import Path
+
 from pydantic import BaseModel
 import json
 import os
 from agent import Agent
 from enum import Enum
 
+# Configure environment variables
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+API_HOST = os.getenv("API_HOST", "0.0.0.0")
+API_PORT = int(os.getenv("API_PORT", "8000"))
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+logging.info(f"Using {find_dotenv()}. Starting FastAPI app in {ENVIRONMENT} mode")
 
 
 # Load agent definition
@@ -19,7 +32,30 @@ agents = list(agent_definition.keys())
 logging.basicConfig(level=logging.INFO)
 logging.info(f"Loaded agents: {agents}")
 
+
 app = FastAPI()
+
+
+# Add CORS middleware with environment-based configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Get the directory where this script is located
+BASE_DIR = Path(__file__).parent
+STATIC_DIR = BASE_DIR / "static"
+
+router = APIRouter(prefix="/api")
+
+
+# API Routes
+@router.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "message": "Backend is running"}
 
 class QueryRequest(BaseModel):
     query: str = "what tools do you have available?"
@@ -27,7 +63,7 @@ class QueryRequest(BaseModel):
 AgentName = Enum('AgentName', {agent: agent for agent in agents})
 
 
-@app.post("/agent")
+@router.post("/agent")
 async def agent_endpoint(request: QueryRequest, agent_name: AgentName = AgentName(agents[0])):
 
     if agent_name.value not in agent_definition:
@@ -45,7 +81,7 @@ async def agent_endpoint(request: QueryRequest, agent_name: AgentName = AgentNam
 
 
 
-@app.post("/agent_stream")
+@router.post("/agent_stream")
 async def stream_response(request: QueryRequest, agent_name: AgentName = AgentName(agents[0])):
 
     if agent_name.value not in agent_definition:
@@ -59,6 +95,15 @@ async def stream_response(request: QueryRequest, agent_name: AgentName = AgentNa
     logging.info(f"Agent created: {agent_name.value}")
 
     return StreamingResponse(agent.run_agent(request.query, streaming=True), media_type="text/plain")
+
+
+# Mount static files for SPA
+if STATIC_DIR.exists():
+    # Serve the React app from the static directory
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="spa")
+
+app.include_router(router)
+
 
 if __name__ == "__main__":
     import uvicorn
