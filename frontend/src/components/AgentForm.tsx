@@ -71,32 +71,80 @@ export default function AgentForm({ onResult }: Props) {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: 16, textAlign: 'left' }}>
-      <h2>Run Agent on Data Source</h2>
-      <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
+  <div style={{ maxWidth: 800, margin: '0 auto', padding: 16, textAlign: 'left' }}>
+    <h2>Run Agent on Data Source</h2>
+    <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
   <ChipListInput
-          label="Websites"
-          type="url"
-          placeholder="https://example.com/page"
-          value={websites}
-          onChange={setWebsites}
-          validateItem={(v) => { try { new URL(v); return true; } catch { return false; } }}
-          suggestions={[
-            'https://example.com',
-            'https://news.ycombinator.com',
-            'https://github.com/trending',
-          ]}
-          itemRender={(w) => <span style={{ wordBreak: 'break-all' }}>{w}</span>}
-        />
+        label="Websites"
+        type="url"
+        placeholder="https://www.bbc.com/news"
+        value={websites}
+        onChange={setWebsites}
+        validateItem={(v) => { try { new URL(v); return true; } catch { return false; } }}
+        suggestions={[
+          'https://www.bbc.com/news',
+          'https://www.cnn.com',
+          'https://www.reuters.com',
+          'https://www.nytimes.com',
+          'https://www.aljazeera.com',
+          'https://www.foxnews.com',
+          'https://www.theguardian.com/international',
+          'https://www.washingtonpost.com/world',
+        ]}
+        itemRender={(w) => <span style={{ wordBreak: 'break-all' }}>{w}</span>}
+      />
 
   <ChipListInput
-          label="Subjects"
-          type="text"
-          placeholder="marketing"
-          value={subjects}
-          onChange={setSubjects}
-          suggestions={[ 'marketing', 'sales', 'engineering', 'product', 'finance' ]}
-        />
+        label="Subjects"
+        type="text"
+        placeholder="russia, border, conflict, policy, protest"
+        value={subjects}
+        onChange={setSubjects}
+        suggestions={[
+          'russia',
+          'border',
+          'ukraine',
+          'china',
+          'conflict',
+          'election',
+          'policy',
+          'immigration',
+          'security',
+          'protest',
+          'war',
+          'crisis',
+          'trade',
+          'sanction',
+          'military',
+          'diplomacy',
+          'energy',
+          'pipeline',
+          'territory',
+          'ceasefire',
+          'treaty',
+          'summit',
+          'espionage',
+          'cyber',
+          'nato',
+          'un',
+          'eu',
+          'us',
+          'iran',
+          'israel',
+          'palestine',
+          'gaza',
+          'biden',
+          'putin',
+          'zelensky',
+          'trump',
+          'modi',
+          'xi',
+          'macron',
+          'sunak',
+          'erdogan',
+          'kim',
+        ]}
+      />
 
   <label style={{ display: 'grid', gap: 6 }}>
           <span>Agent</span>
