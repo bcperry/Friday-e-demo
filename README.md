@@ -91,6 +91,10 @@ friday-e-demo/
    - Swagger UI: `http://localhost:8000/docs`
    - ReDoc: `http://localhost:8000/redoc`
 
+6. **Developing the full stack:**
+   - ```
+   ctrl+shift+b
+   ```
 ## API Endpoints
 
 ### Agent Interaction

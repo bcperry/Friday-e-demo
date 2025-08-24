@@ -1,11 +1,57 @@
 {
   "version": "2.0.0",
   "tasks": [
+        {
+      "label": "Start MCP",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference='Stop'; $venvPy=Join-Path (Resolve-Path '.') '.venv/Scripts/python.exe'; if (Test-Path $venvPy) { & $venvPy 'main.py' } else { & uv run 'main.py' }"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/mcps"
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": ".*Uvicorn running on.*8001.*"
+        }
+      }
+    },
     {
       "label": "Start Backend",
       "type": "shell",
-      "command": "uv",
-      "args": ["run", "fastapi", "dev"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference='Stop'; $venvPy=Join-Path (Resolve-Path '.') '.venv/Scripts/python.exe'; if (Test-Path $venvPy) { & $venvPy '-m' 'fastapi' 'dev' } else { & uv run 'fastapi' 'dev' }"
+      ],
       "options": {
         "cwd": "${workspaceFolder}/backend"
       },
@@ -41,7 +87,12 @@
       "command": "npm",
       "args": ["run", "dev"],
       "options": {
-        "cwd": "${workspaceFolder}/frontend"
+        "cwd": "${workspaceFolder}/frontend",
+        "env": {
+          "VIRTUAL_ENV": "",
+          "PYTHONHOME": "",
+          "PYTHONPATH": ""
+        }
       },
       "group": "build",
       "presentation": {
@@ -74,7 +125,8 @@
       "dependsOrder": "parallel",
       "dependsOn": [
         "Start Backend",
-        "Start Frontend"
+        "Start Frontend",
+        "Start MCP"
       ],
       "group": {
         "kind": "build",

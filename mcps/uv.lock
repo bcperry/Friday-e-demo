@@ -568,6 +568,7 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "fastmcp" },
     { name = "lxml" },
+    { name = "requests" },
 ]
 
 [package.metadata]
@@ -575,6 +576,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "fastmcp", extras = ["cli"], specifier = ">=2.11.3" },
     { name = "lxml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.31.0" },
 ]
 
 [[package]]

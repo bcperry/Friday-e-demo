@@ -8,4 +8,5 @@ dependencies = [
     "beautifulsoup4>=4.13.4",
     "fastmcp[cli]>=2.11.3",
     "lxml>=6.0.1",
+    "requests>=2.31.0"
 ]
