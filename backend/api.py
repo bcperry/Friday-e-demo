@@ -58,7 +58,7 @@ async def health_check():
     return {"status": "healthy", "message": "Backend is running"}
 
 class QueryRequest(BaseModel):
-    query: str = "what tools do you have available?"
+    query: str = "what are the recent documents about AI on bbc.com?"
 # Create enum from agents list
 AgentName = Enum('AgentName', {agent: agent for agent in agents})
 
@@ -82,23 +82,6 @@ async def agent_endpoint(request: QueryRequest, agent_name: AgentName = AgentNam
     logging.info(f"Agent created: {agent_name.value}")
     result = await agent.run_agent(request.query)
     return result
-
-
-@router.post("/agent_stream")
-async def stream_response(request: QueryRequest, agent_name: AgentName = AgentName(agents[0])):
-
-    if agent_name.value not in agent_definition:
-        return {"error": "Agent not found"}
-
-    logging.info(f"Creating agent: {agent_name.value}")
-    logging.info(f"Agent config: {agent_definition[agent_name.value]}")
-    # Create agent
-    agent = await Agent.create(agent_definition[agent_name.value])
-
-    logging.info(f"Agent created: {agent_name.value}")
-
-    return StreamingResponse(agent.run_agent_stream(request.query), media_type="text/plain")
-
 
 # Include API routes BEFORE mounting the SPA so /api/* isn't shadowed by StaticFiles at "/".
 app.include_router(router)

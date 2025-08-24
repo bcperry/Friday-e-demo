@@ -18,6 +18,7 @@
       "name": "Debug Backend",
       "type": "debugpy",
       "request": "launch",
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "module": "uvicorn",
       "args": [
         "api:app",
@@ -27,9 +28,6 @@
       ],
       "cwd": "${workspaceFolder}/backend",
       "console": "integratedTerminal",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend"
-      },
       "justMyCode": false
     }
   ],

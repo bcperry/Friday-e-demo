@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildQueryFromLists, getAgents, runAgent, tryParseAgentResult, parseOllamaLikeDict } from '../services/api';
 import type { AgentResult } from '../types/agent';
 import ChipListInput from './ChipListInput';
+import MessageSchemaCard from './MessageSchemaCard';
 
 type Props = {
   onResult?: (text: string) => void;
@@ -83,13 +84,9 @@ export default function AgentForm({ onResult }: Props) {
         validateItem={(v) => { try { new URL(v); return true; } catch { return false; } }}
         suggestions={[
           'https://www.bbc.com/news',
-          'https://www.cnn.com',
           'https://www.reuters.com',
           'https://www.nytimes.com',
           'https://www.aljazeera.com',
-          'https://www.foxnews.com',
-          'https://www.theguardian.com/international',
-          'https://www.washingtonpost.com/world',
         ]}
         itemRender={(w) => <span style={{ wordBreak: 'break-all' }}>{w}</span>}
       />
@@ -103,46 +100,12 @@ export default function AgentForm({ onResult }: Props) {
         suggestions={[
           'russia',
           'border',
-          'ukraine',
-          'china',
-          'conflict',
-          'election',
-          'policy',
-          'immigration',
-          'security',
-          'protest',
-          'war',
-          'crisis',
-          'trade',
-          'sanction',
-          'military',
-          'diplomacy',
-          'energy',
-          'pipeline',
-          'territory',
-          'ceasefire',
-          'treaty',
-          'summit',
           'espionage',
           'cyber',
           'nato',
           'un',
           'eu',
-          'us',
-          'iran',
-          'israel',
-          'palestine',
-          'gaza',
-          'biden',
-          'putin',
-          'zelensky',
-          'trump',
-          'modi',
-          'xi',
-          'macron',
-          'sunak',
-          'erdogan',
-          'kim',
+          'us'
         ]}
       />
 
@@ -299,6 +262,15 @@ export default function AgentForm({ onResult }: Props) {
                   ) : (
                     <pre style={{ whiteSpace: 'pre-wrap' }}>{typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2)}</pre>
                   )}
+                </div>
+                {/* New: schema-aware card fed by the message content */}
+                <div style={{ marginTop: 12 }}>
+                  {(() => {
+                    const dict: Record<string, unknown> = (dictView || {}) as Record<string, unknown>;
+                    const candidate = (dict['message'] ?? dict['messages'] ?? dict) as unknown;
+                    const msgForCard = candidate ?? (dict as any)?.raw;
+                    return <MessageSchemaCard message={msgForCard} />;
+                  })()}
                 </div>
               </details>
             );
