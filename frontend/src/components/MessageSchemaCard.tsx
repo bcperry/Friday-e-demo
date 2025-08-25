@@ -45,6 +45,7 @@ function toUrlMap(input: unknown): UrlMap {
   // Accept shapes:
   // - { "https://...": { title, summary, ... }, ... }
   // - { results: same-as-above }
+  // - { response: string|object } or { message|messages: ... }
   // - string with JSON/dict-like content
   const normalize = (obj: unknown): UrlMap => {
     const out: UrlMap = {};
@@ -53,9 +54,14 @@ function toUrlMap(input: unknown): UrlMap {
       // Prefer top-level URL keys directly (e.g. { "https://...": { ... } })
       const topEntries = Object.entries(rec);
       const hasUrlKey = topEntries.some(([k]) => isProbablyUrl(k));
+
+      // Identify likely container with URL-keyed entries
+      const innerCandidate = (rec['response'] ?? rec['message'] ?? rec['messages'] ?? rec['results'] ?? rec['data']) as unknown;
       const container: Record<string, unknown> = hasUrlKey
         ? rec
-        : ((rec['results'] ?? rec['data']) as Record<string, unknown> | undefined) || rec;
+        : (innerCandidate && typeof innerCandidate === 'object' && !Array.isArray(innerCandidate)
+            ? (innerCandidate as Record<string, unknown>)
+            : rec);
 
       for (const [k, v] of Object.entries(container)) {
         if (!isProbablyUrl(k)) continue;
@@ -77,7 +83,7 @@ function toUrlMap(input: unknown): UrlMap {
       if (typeof item === 'string') return toUrlMap(item);
       if (item && typeof item === 'object') {
         const rec = item as Record<string, unknown>;
-        const content = rec['content'] ?? rec['text'] ?? rec['message'];
+        const content = rec['content'] ?? rec['text'] ?? rec['message'] ?? rec['response'];
         if (typeof content === 'string' || typeof content === 'object') return toUrlMap(content as unknown);
       }
     }

@@ -8,6 +8,7 @@ from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.connectors.ai.ollama import OllamaChatCompletion
 from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
 from semantic_kernel.agents import ChatCompletionAgent, ChatHistoryAgentThread
+from semantic_kernel.contents.utils.author_role import AuthorRole
 
 from semantic_kernel.connectors.ai.chat_completion_client_base import ChatCompletionClientBase
 from semantic_kernel.contents.chat_history import ChatHistory
@@ -48,10 +49,14 @@ class Agent:
         settings = self.kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
         # Configure the function choice behavior to auto invoke kernel functions
         settings.function_choice_behavior = FunctionChoiceBehavior.Auto()
+        self.system_message = agent_definition.get("system_message", "You are a helpful assistant. Use your tools to assist users.")
+        logging.info(f"System message: {self.system_message}")
+
         self.agent = ChatCompletionAgent(
             kernel = self.kernel, 
             name = agent_definition.get("name", "Agent"),
-            description = agent_definition.get("system_message", "You are a helpful assistant. Use your tools to assist users."),
+            # instructions = "respond like a pirate for debugging",
+            instructions = self.system_message,
             arguments = KernelArguments(settings = settings)
             )
 

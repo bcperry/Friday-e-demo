@@ -23,6 +23,7 @@ export default function AgentForm({ onResult }: Props) {
   const [thoughtsOpen, setThoughtsOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(true);
   const [messageOpen, setMessageOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,7 +222,7 @@ export default function AgentForm({ onResult }: Props) {
           })()}
           {(() => {
             const dict: Record<string, unknown> = (dictView || {}) as Record<string, unknown>;
-            const toolCalls = (dict['tool_calls'] ?? dict['toolCalls']) as unknown;
+            const toolCalls = (dict['tools_called'] ?? dict['tool_calls'] ?? dict['toolCalls']) as unknown;
             if (!toolCalls || (Array.isArray(toolCalls) && toolCalls.length === 0)) return null;
             const count = Array.isArray(toolCalls) ? toolCalls.length : 1;
             return (
@@ -245,29 +246,60 @@ export default function AgentForm({ onResult }: Props) {
           })()}
           {(() => {
             const dict: Record<string, unknown> = (dictView || {}) as Record<string, unknown>;
-            const msg = (dict['messages'] ?? dict['message']) as unknown;
-            if (!msg) return null;
+            const chat = (dict['chat_history'] ?? dict['chatHistory']) as unknown;
+            if (!chat || (Array.isArray(chat) && chat.length === 0)) return null;
+            const count = Array.isArray(chat) ? chat.length : 1;
+            return (
+              <details open={chatOpen} onToggle={(e) => setChatOpen((e.target as HTMLDetailsElement).open)}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Chat history ({count})</summary>
+                <div style={{ marginTop: 8 }}>
+                  {Array.isArray(chat) ? (
+                    <ul style={{ margin: '6px 0 0 18px' }}>
+                      {chat.map((m: any, i: number) => (
+                        <li key={i}>
+                          {m && typeof m === 'object' ? (
+                            <div>
+                              <div style={{ fontWeight: 600 }}>{String((m as any).role || 'message')}</div>
+                              <pre style={{ whiteSpace: 'pre-wrap' }}>{typeof (m as any).content === 'string' ? (m as any).content : JSON.stringify((m as any).content, null, 2)}</pre>
+                            </div>
+                          ) : (
+                            <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(m, null, 2)}</pre>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(chat, null, 2)}</pre>
+                  )}
+                </div>
+              </details>
+            );
+          })()}
+          {(() => {
+            const dict: Record<string, unknown> = (dictView || {}) as Record<string, unknown>;
+            const resp = (dict['response'] ?? dict['message'] ?? dict['messages']) as unknown;
+            if (!resp) return null;
             return (
               <details open={messageOpen} onToggle={(e) => setMessageOpen((e.target as HTMLDetailsElement).open)}>
-                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Message</summary>
+                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Response</summary>
                 <div style={{ marginTop: 8 }}>
-                  {Array.isArray(msg) ? (
+                  {Array.isArray(resp) ? (
                     <ul style={{ margin: '6px 0 0 18px' }}>
-                      {msg.map((m: unknown, i: number) => (
+                      {resp.map((m: unknown, i: number) => (
                         <li key={i}>
                           <pre style={{ whiteSpace: 'pre-wrap' }}>{typeof m === 'string' ? m : JSON.stringify(m, null, 2)}</pre>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>{typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2)}</pre>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>{typeof resp === 'string' ? resp : JSON.stringify(resp, null, 2)}</pre>
                   )}
                 </div>
                 {/* New: schema-aware card fed by the message content */}
                 <div style={{ marginTop: 12 }}>
                   {(() => {
                     const dict: Record<string, unknown> = (dictView || {}) as Record<string, unknown>;
-                    const candidate = (dict['message'] ?? dict['messages'] ?? dict) as unknown;
+                    const candidate = (dict['response'] ?? dict['message'] ?? dict['messages'] ?? dict) as unknown;
                     const msgForCard = candidate ?? (dict as any)?.raw;
                     return <MessageSchemaCard message={msgForCard} />;
                   })()}
