@@ -50,7 +50,6 @@ def show_results(response_data):
 
         for key, value in response_data.items():
 
-
             # Create expander with item name or fallback title
             expander_title = value.get("name", value.get("title", f"Item {key}"))
 
@@ -154,6 +153,10 @@ def show_results(response_data):
                                         st.session_state.query_result["response_json"][key]["images"] = updated_images
                                 
                                 st.rerun()  # Refresh the page to show changes
+                                # Display content
+                if "redacted_text" in value:
+                    st.write("**Redacted Text:**")
+                    st.write(value["redacted_text"], height=300, key=f"redacted_text_{key}")
 
                 if not st.session_state.get(f"identify_us_persons_{key}"):
                     if st.button("Identify US Persons", key=f"identify_us_persons_{key}", use_container_width=True):
@@ -161,9 +164,9 @@ def show_results(response_data):
 
                 if st.session_state.get(f"identify_us_persons_{key}"):
                     USPER_data = run_agent(value["content"], "USPER", st.session_state.backend_url)
-                    st.write("**Redacted Text**")
                     st.write(USPER_data['response_json']['redacted_text'])
-                    st.session_state.query_result['redacted_text'] = USPER_data['response_json']['redacted_text']
+                    # st.json(st.session_state.query_result["response_json"])
+                    st.session_state.query_result["response_json"][key]['redacted_text'] = USPER_data['response_json']['redacted_text']
                     st.success("Identified US Persons Successfully!")
 
                 if st.button("Submit", key=f"submit_{key}", use_container_width=True):
