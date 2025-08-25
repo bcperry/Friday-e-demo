@@ -52,6 +52,7 @@ if agents:
                     result = run_agent(query, selected_agent, BACKEND_URL)
                     if result:
                         # Store result in session state
+
                         st.session_state.query_result = result
             else:
                 st.warning("Please enter a query")

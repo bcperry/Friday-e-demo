@@ -25,7 +25,9 @@ def run_agent(query, selected_agent, BACKEND_URL):
             params={"agent_name": selected_agent}
         )
         response.raise_for_status()
+        st.write("response:", response)
         result = response.json()
+        st.write("result:", result)
         # Parse response as JSON if it's a string, otherwise keep as dict
         response_data = result.get("response")
         if isinstance(response_data, str):
@@ -89,6 +91,107 @@ def show_results(response_data):
                 if "content" in value:
                     st.write("**Content:**")
                     st.write(value["content"], height=300, key=f"content_{key}")
+
+                # Display country information
+                if "country" in value and value["country"]:
+                    st.write("**Country:**")
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        country_input = st.text_input(
+                            "Country Code", 
+                            value=value["country"], 
+                            key=f"country_{key}",
+                            help="ISO 3166-1 alpha-2 country code (e.g., US, RU, CN, UK)"
+                        )
+                        # Update session state when country changes
+                        if country_input != value["country"]:
+                            st.session_state.query_result["response_json"][key]["country"] = country_input
+                    with col2:
+                        if st.button("Clear", key=f"clear_country_{key}"):
+                            st.session_state.query_result["response_json"][key]["country"] = ""
+                            st.rerun()
+
+                # Display activity categories
+                if "activity_categories" in value and value["activity_categories"]:
+                    st.write("**Activity Categories:**")
+                    categories = value["activity_categories"] if isinstance(value["activity_categories"], list) else []
+                    
+                    # Available categories with descriptions
+                    category_descriptions = {
+                        "MIOPS": "Military Operations - Combat operations, troop movements, exercises",
+                        "INTEL": "Intelligence Activities - Intelligence gathering, surveillance operations",
+                        "CI": "Counterintelligence - Counterintelligence operations, espionage detection",
+                        "CT": "Counterterrorism - Anti-terrorism operations, terrorist activities",
+                        "CYBER": "Cybersecurity - Cyber operations, digital warfare, hacking",
+                        "POLACT": "Political Activities - Political developments, diplomatic activities",
+                        "ECON": "Economic Intelligence - Economic warfare, sanctions, trade intelligence",
+                        "FIE": "Foreign Intelligence Entities - Foreign intelligence services activities",
+                        "INFRA": "Infrastructure - Critical infrastructure, facilities, installations",
+                        "TRANS": "Transportation - Transportation systems, logistics, supply chains"
+                    }
+                    
+                    # Display existing categories with remove buttons
+                    for i, category in enumerate(categories):
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            description = category_descriptions.get(category, "Unknown category")
+                            st.text(f"• {category}")
+                            st.caption(description)
+                        with col2:
+                            if st.button("Remove", key=f"remove_category_{key}_{i}"):
+                                updated_categories = [cat for j, cat in enumerate(categories) if j != i]
+                                st.session_state.query_result["response_json"][key]["activity_categories"] = updated_categories
+                                st.rerun()
+                    
+                    # Add new category selector
+                    available_categories = list(category_descriptions.keys())
+                    remaining_categories = [cat for cat in available_categories if cat not in categories]
+                    
+                    if remaining_categories:
+                        new_category = st.selectbox(
+                            "Add Category", 
+                            [""] + remaining_categories,
+                            key=f"new_category_{key}",
+                            format_func=lambda x: f"{x} - {category_descriptions.get(x, '')}" if x else "Select a category..."
+                        )
+                        
+                        if new_category and st.button("Add Category", key=f"add_category_{key}"):
+                            updated_categories = categories + [new_category]
+                            st.session_state.query_result["response_json"][key]["activity_categories"] = updated_categories
+                            st.rerun()
+                    else:
+                        st.info("All available categories have been assigned.")
+                elif "activity_categories" in value:
+                    # Handle case where activity_categories exists but is empty
+                    st.write("**Activity Categories:**")
+                    st.info("No activity categories assigned yet.")
+                    
+                    # Available categories with descriptions
+                    category_descriptions = {
+                        "MIOPS": "Military Operations - Combat operations, troop movements, exercises",
+                        "INTEL": "Intelligence Activities - Intelligence gathering, surveillance operations",
+                        "CI": "Counterintelligence - Counterintelligence operations, espionage detection",
+                        "CT": "Counterterrorism - Anti-terrorism operations, terrorist activities",
+                        "CYBER": "Cybersecurity - Cyber operations, digital warfare, hacking",
+                        "POLACT": "Political Activities - Political developments, diplomatic activities",
+                        "ECON": "Economic Intelligence - Economic warfare, sanctions, trade intelligence",
+                        "FIE": "Foreign Intelligence Entities - Foreign intelligence services activities",
+                        "INFRA": "Infrastructure - Critical infrastructure, facilities, installations",
+                        "TRANS": "Transportation - Transportation systems, logistics, supply chains"
+                    }
+                    
+                    # Add category selector for empty list
+                    available_categories = list(category_descriptions.keys())
+                    new_category = st.selectbox(
+                        "Add Category", 
+                        [""] + available_categories,
+                        key=f"new_category_{key}",
+                        format_func=lambda x: f"{x} - {category_descriptions.get(x, '')}" if x else "Select a category..."
+                    )
+                    
+                    if new_category and st.button("Add Category", key=f"add_category_{key}"):
+                        st.session_state.query_result["response_json"][key]["activity_categories"] = [new_category]
+                        st.rerun()
 
                 # Display media and images
                 media_urls = []

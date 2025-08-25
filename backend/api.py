@@ -1,12 +1,13 @@
 import logging
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, status
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
-
+from fastapi import HTTPException
 from pydantic import BaseModel
 import json
 import os
@@ -76,7 +77,7 @@ async def get_agents():
 async def agent_endpoint(request: QueryRequest, agent_name: str = agents[0]):
 
     if agent_name not in agent_definition:
-        return {"error": "Agent not found"}
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     logging.info(f"Creating agent: {agent_name}")
     logging.info(f"Agent config: {agent_definition[agent_name]}")
@@ -84,8 +85,29 @@ async def agent_endpoint(request: QueryRequest, agent_name: str = agents[0]):
     agent = await Agent.create(agent_definition[agent_name])
 
     logging.info(f"Agent created: {agent_name}")
-    result = await agent.run_agent(request.query)
-    return result
+    try:
+        result = await agent.run_agent(request.query)
+        logging.info("Received response from agent: %s", result)
+        
+        # Check if the result contains a status_code indicating an error
+        if isinstance(result, dict) and "status_code" in result:
+            status_code = result["status_code"]
+            if status_code == 429:
+                raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+            elif status_code >= 400:
+                raise HTTPException(status_code=status_code, detail=result.get("response", {}).get("error", "An error occurred"))
+        
+        return result
+    except HTTPException:
+        # Re-raise HTTPExceptions (including the ones we just created above)
+        raise
+    except Exception as e:
+        logging.error(f"Error running agent {agent_name}: {e}")
+
+
+@router.post("/test")
+async def test():
+    raise HTTPException(status_code=429, detail="I'm a teapot")
 
 # Include API routes BEFORE mounting the SPA so /api/* isn't shadowed by StaticFiles at "/".
 app.include_router(router)
@@ -98,4 +120,5 @@ if STATIC_DIR.exists():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 class Agent:
     def __init__(self, agent_definition: dict):
         # Initialize the kernel
-        service_id = agent_definition.get("name", "Agent")
+        self.service_id = agent_definition.get("name", "Agent")
 
         self.kernel = Kernel()
         self._setup_chat_completion(agent_definition)
@@ -46,7 +46,7 @@ class Agent:
     # synchronously to avoid 'coroutine was never awaited' warnings. Use the
     # async factory `Agent.create(...)` or call `await agent._setup_mcp_plugins(...)`
     # from async code after constructing the instance.
-        settings = self.kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
+        settings = self.kernel.get_prompt_execution_settings_from_service_id(service_id=self.service_id)
         # Configure the function choice behavior to auto invoke kernel functions
         settings.function_choice_behavior = FunctionChoiceBehavior.Auto(maximum_auto_invoke_attempts=15)
         settings.temperature = 0
@@ -185,7 +185,14 @@ class Agent:
                     logging.error(f"Failed to close server connection: {e}")
         except Exception as e:
             # Best-effort cleanup; ignore errors
-            logging.error(f"The chat message processing failed. {e}")
+            if "429" in str(e) or "rate_limit_exceeded" in str(e).lower():
+                logging.warning(f"Rate limit exceeded for agent {self.service_id}: {e}")
+                return {"status_code": 429, "response": {
+                    "error": "Rate limit exceeded. Please try again later."
+                }}
+            else:
+                logging.error(f"Error running agent {self.service_id}: {e}")
+                return {"error": "An error occurred while processing your request"}
         
         response_dict = {
             "response": response.content.content if response and hasattr(response, 'content') and hasattr(response.content, 'content') else "No response",
