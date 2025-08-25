@@ -332,7 +332,6 @@ def extract_metadata(soup: BeautifulSoup, url: str, include_technical: bool = Tr
 @mcp.tool()
 async def list_links_with_descriptions_tool(
         url: str = Field(..., description="The page URL to scan for links"),
-        max_links: int = Field(50, ge=1, le=200, description="Maximum number of links to include"),
         include_anchor_text: bool = Field(True, description="Use the anchor text as description when available"),
         include_title_attribute: bool = Field(True, description="Use the <a title> or aria-label when available"),
     fetch_linked_pages: bool = Field(False, description="Fetch each linked page to get meta description/title (slower)"),
@@ -396,9 +395,6 @@ async def list_links_with_descriptions_tool(
             # choose first non-empty, prefer longer than 3 chars
             description = next((d for d in desc_candidates if len(d) > 3), (desc_candidates[0] if desc_candidates else ''))
             ordered.append((normalized, description))
-
-            if len(ordered) >= max_links:
-                break
 
         # Optional: enrich by fetching linked pages (limited)
         if fetch_linked_pages and ordered:

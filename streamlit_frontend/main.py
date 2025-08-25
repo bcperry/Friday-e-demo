@@ -3,12 +3,12 @@ from functions import fetch_agents, run_agent, show_results
 
 st.title("FRIDAY-E")
 
-st.set_page_config(page_title="FRIDAY-E", layout="wide", page_icon=":robot:")
+st.set_page_config(page_title="FRIDAY-E", layout="wide", page_icon="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Emblem_of_the_United_States_Department_of_the_Army.svg/640px-Emblem_of_the_United_States_Department_of_the_Army.svg.png")
 
 # Display logo
 col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image("https://via.placeholder.com/300x100/1f77b4/white?text=FRIDAY-E", width=300)
+with col1:
+    st.image("https://www.usainscom.army.mil/Portals/132/INSCOM%20SEAL2.0.png?ver=FaruLOh1BgYjCnskgKTTHQ%3d%3d", width=100)
 
 # Backend API configuration
 BACKEND_URL = "http://127.0.0.1:8000"
@@ -44,7 +44,7 @@ if agents:
         selected_topics = st.multiselect("Select Topics", topics)
 
         if selected_locations or selected_topics:
-            query = f"The user provided {query} as well as [Locations: {', '.join(selected_locations)}] [Topics: {', '.join(selected_topics)}]"
+            query = f"User query: {query}.[Locations: {', '.join(selected_locations)}] [Topics: {', '.join(selected_topics)}]"
 
         if st.button("Submit Query"):
             if query:

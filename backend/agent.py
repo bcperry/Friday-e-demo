@@ -48,7 +48,7 @@ class Agent:
     # from async code after constructing the instance.
         settings = self.kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
         # Configure the function choice behavior to auto invoke kernel functions
-        settings.function_choice_behavior = FunctionChoiceBehavior.Auto()
+        settings.function_choice_behavior = FunctionChoiceBehavior.Auto(maximum_auto_invoke_attempts=15)
         settings.temperature = 0
         logging.info(f"LLM settings: {settings}")
         self.system_message = agent_definition.get("system_message", "You are a helpful assistant. Use your tools to assist users.")

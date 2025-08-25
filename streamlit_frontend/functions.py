@@ -30,15 +30,23 @@ def run_agent(query, selected_agent, BACKEND_URL):
         response_data = result.get("response")
         if isinstance(response_data, str):
             try:
-                result['response_json'] = json.loads(response_data)
+                parsed_response = json.loads(response_data)
+                # Check if the parsed response contains an error
+                if isinstance(parsed_response, dict) and "error" in parsed_response:
+                    st.error(f"Backend error: {parsed_response['error']}")
+                    result['response_json'] = {}
+                else:
+                    result['response_json'] = parsed_response
             except json.JSONDecodeError:
-                print(result)
-                print("Failed to decode response JSON")
+                st.write(result)
+                st.error("Failed to decode response JSON")
+                result['response_json'] = {}
         else:
             result['response_json'] = response_data
 
     except requests.exceptions.RequestException as e:
         st.error(f"Error processing query: {e}")
+        result = {"response_json": {}}
     return result
 
 def show_results(response_data):
@@ -47,8 +55,10 @@ def show_results(response_data):
     if "response_json" in result and result["response_json"]:
         response_data = result["response_json"]
         st.subheader(f"{len(response_data)} Relevant result{'s' if len(response_data) != 1 else ''}")
-
+        
         for key, value in response_data.items():
+
+            
 
             # Create expander with item name or fallback title
             expander_title = value.get("name", value.get("title", f"Item {key}"))
