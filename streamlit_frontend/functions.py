@@ -111,6 +111,11 @@ def show_results(response_data):
                         with col1:
                             # Check file extension to determine media type
                             url_lower = url.lower()
+                            # Extract the file extension before any URL parameters or encoding
+                            url_base = url.split('?')[0]  # Remove query parameters
+                            url_base = url_base.split('#')[0]  # Remove fragments
+                            url_lower = url_base.lower()
+                            
                             if url_lower.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp')):
                                 st.image(url)
                             elif url_lower.endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv')):

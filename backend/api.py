@@ -13,6 +13,12 @@ import os
 from agent import Agent
 from enum import Enum
 
+# Configure logging FIRST before any logging calls
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 # Configure environment variables
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -21,7 +27,6 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 logging.info(f"Using {find_dotenv()}. Starting FastAPI app in {ENVIRONMENT} mode")
 
-
 # Load agent definition
 current_dir = os.path.dirname(__file__)
 agent_def_path = os.path.join(current_dir, "agent_definition.json")
@@ -29,7 +34,6 @@ with open(agent_def_path, "r") as f:
     agent_definition = json.load(f)
 
 agents = list(agent_definition.keys())
-logging.basicConfig(level=logging.INFO)
 logging.info(f"Loaded agents: {agents}")
 
 
@@ -59,9 +63,9 @@ async def health_check():
 
 class QueryRequest(BaseModel):
     query: str = "what are the recent documents about AI on bbc.com?"
+
 # Create enum from agents list
 AgentName = Enum('AgentName', {agent: agent for agent in agents})
-
 
 @router.get("/agents", response_model=list[str])
 async def get_agents():
@@ -69,17 +73,17 @@ async def get_agents():
     return agents
 
 @router.post("/agent")
-async def agent_endpoint(request: QueryRequest, agent_name: AgentName = AgentName(agents[0])):
+async def agent_endpoint(request: QueryRequest, agent_name: str = agents[0]):
 
-    if agent_name.value not in agent_definition:
+    if agent_name not in agent_definition:
         return {"error": "Agent not found"}
 
-    logging.info(f"Creating agent: {agent_name.value}")
-    logging.info(f"Agent config: {agent_definition[agent_name.value]}")
+    logging.info(f"Creating agent: {agent_name}")
+    logging.info(f"Agent config: {agent_definition[agent_name]}")
     # Create agent
-    agent = await Agent.create(agent_definition[agent_name.value])
+    agent = await Agent.create(agent_definition[agent_name])
 
-    logging.info(f"Agent created: {agent_name.value}")
+    logging.info(f"Agent created: {agent_name}")
     result = await agent.run_agent(request.query)
     return result
 

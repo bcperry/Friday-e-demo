@@ -49,6 +49,8 @@ class Agent:
         settings = self.kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
         # Configure the function choice behavior to auto invoke kernel functions
         settings.function_choice_behavior = FunctionChoiceBehavior.Auto()
+        settings.temperature = 0
+        logging.info(f"LLM settings: {settings}")
         self.system_message = agent_definition.get("system_message", "You are a helpful assistant. Use your tools to assist users.")
         logging.info(f"System message: {self.system_message}")
 
@@ -61,15 +63,19 @@ class Agent:
             )
 
     def _setup_logging(self, loglevel = logging.INFO):
-
-
+        # Get the root logger to ensure we use the existing configuration
+        root_logger = logging.getLogger()
+        
         # Configure logging levels for different components
         logging.getLogger("semantic_kernel").setLevel(loglevel)
         logging.getLogger("semantic_kernel.kernel").setLevel(loglevel)
         logging.getLogger("semantic_kernel.connectors").setLevel(loglevel)
+        
+        # Set the level for the current module's logger
+        logging.getLogger(__name__).setLevel(loglevel)
     
-        # Set up a basic console handler if not already configured
-        if not logging.getLogger().handlers:
+        # Only set up basic config if no handlers are configured
+        if not root_logger.handlers:
             logging.basicConfig(
                 level=loglevel,
                 format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -148,6 +154,7 @@ class Agent:
         return inst
 
     async def run_agent(self, user_input: str):
+        response = None  # Initialize response to avoid UnboundLocalError
 
         try:
             logging.info(f"Running agent with user input: {user_input}")
@@ -180,21 +187,23 @@ class Agent:
             # Best-effort cleanup; ignore errors
             logging.error(f"The chat message processing failed. {e}")
         
-        response = {"response": response.content.content if response else "No response",
-                    "chat_history": [ {"role": message.role, "content": message.content} for message in self.thread._chat_history.messages],
-                    "tools_called": [
-                        {
-                            "name": item.function_name,
-                            "arguments": item.metadata.get("arguments", None),
-                            "results": getattr(item, "result", [None])[0].text if hasattr(item, "result") and item.result else None
-                        }
-                        for message in self.thread._chat_history.messages if message.items
-                        for item in message.items if isinstance(item, FunctionResultContent)
-                    ],
+        response_dict = {
+            "response": response.content.content if response and hasattr(response, 'content') and hasattr(response.content, 'content') else "No response",
+            "chat_history": [{"role": message.role, "content": message.content} for message in self.thread._chat_history.messages] if self.thread else [],
+            "tools_called": [
+                {
+                    "name": item.function_name,
+                    "arguments": item.metadata.get("arguments", None),
+                    "results": getattr(item, "result", [None])[0].text if hasattr(item, "result") and item.result else None
                 }
+                for message in (self.thread._chat_history.messages if self.thread else []) if message.items
+                for item in message.items if isinstance(item, FunctionResultContent)
+            ],
+        }
 
-        await self.thread.delete()
-        return response
+        if self.thread:
+            await self.thread.delete()
+        return response_dict
 
     def _setup_chat_completion(self, agent_definition):
         """Setup the chat completion service based on agent definition."""
