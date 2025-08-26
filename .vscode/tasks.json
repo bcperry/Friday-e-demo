@@ -2,6 +2,12 @@
   "version": "2.0.0",
   "tasks": [
         {
+          "label": "Start Playwright MCP",
+      "type": "shell",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--port", "8002", "--browser", "msedge"],
+    },
+        {
       "label": "Start MCP",
       "type": "shell",
       "command": "powershell",
@@ -159,7 +165,8 @@
         "Start Backend",
         // "Start Frontend",
         "Start Streamlit Frontend",
-        "Start MCP"
+        "Start MCP",
+        "Start Playwright MCP"
       ],
       "group": {
         "kind": "build",
