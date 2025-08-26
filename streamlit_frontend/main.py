@@ -62,7 +62,10 @@ if agents:
         if 'query_result' in st.session_state and st.session_state.query_result:
             if st.checkbox("Show Raw Query Result", value=False):
                 st.write("Query Result: ", st.session_state.query_result)
-            show_results(st.session_state.query_result)
+            if isinstance(st.session_state.query_result['response_json'], str):
+                st.write(st.session_state.query_result['response_json'])
+            else:
+                show_results(st.session_state.query_result)
 else:
     st.error("No agents available or backend is not accessible")
 
