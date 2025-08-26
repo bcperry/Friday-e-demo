@@ -37,7 +37,7 @@ if agents:
         query = st.text_area("Enter your query:", placeholder="What would you like to know?")
 
         # Add location and topic selectors
-        locations = ["The Guardian", "CNBC", "NPR", "Fox News"]
+        locations = ["The Guardian", "NPR", "Fox News"]
 
         topics = ["Ukraine", "China", "War", "Technology", "Breaking News"]
 
