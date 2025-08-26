@@ -103,11 +103,9 @@ async def agent_endpoint(request: QueryRequest, agent_name: str = agents[0]):
         raise
     except Exception as e:
         logging.error(f"Error running agent {agent_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/test")
-async def test():
-    raise HTTPException(status_code=429, detail="I'm a teapot")
 
 # Include API routes BEFORE mounting the SPA so /api/* isn't shadowed by StaticFiles at "/".
 app.include_router(router)

@@ -37,8 +37,9 @@ if agents:
         query = st.text_area("Enter your query:", placeholder="What would you like to know?")
 
         # Add location and topic selectors
-        locations = ["BBC News", "CNN", "Reuters", "Associated Press", "NPR", "Fox News", "CNBC", "Bloomberg", "The Guardian", "Wall Street Journal"]
-        topics = ["Ukraine", "China", "War", "Technology", "Science", "Breaking News"]
+        locations = ["The Guardian", "CNBC", "NPR", "Fox News"]
+
+        topics = ["Ukraine", "China", "War", "Technology", "Breaking News"]
 
         selected_locations = st.multiselect("Select Locations", locations)
         selected_topics = st.multiselect("Select Topics", topics)
@@ -59,6 +60,7 @@ if agents:
 
         # Display results from session state (outside the button callback)
         if 'query_result' in st.session_state and st.session_state.query_result:
+            # st.write("Query Result: ", st.session_state.query_result)
             show_results(st.session_state.query_result)
 else:
     st.error("No agents available or backend is not accessible")

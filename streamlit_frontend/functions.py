@@ -25,9 +25,7 @@ def run_agent(query, selected_agent, BACKEND_URL):
             params={"agent_name": selected_agent}
         )
         response.raise_for_status()
-        st.write("response:", response)
         result = response.json()
-        st.write("result:", result)
         # Parse response as JSON if it's a string, otherwise keep as dict
         response_data = result.get("response")
         if isinstance(response_data, str):
@@ -40,9 +38,8 @@ def run_agent(query, selected_agent, BACKEND_URL):
                 else:
                     result['response_json'] = parsed_response
             except json.JSONDecodeError:
-                st.write(result)
                 st.error("Failed to decode response JSON")
-                result['response_json'] = {}
+                result['response_json'] = response_data
         else:
             result['response_json'] = response_data
 
@@ -60,14 +57,14 @@ def show_results(response_data):
         
         for key, value in response_data.items():
 
-            
-
             # Create expander with item name or fallback title
             expander_title = value.get("name", value.get("title", f"Item {key}"))
 
             with st.expander(expander_title, expanded=True):
                 if st.checkbox("View Json", key=f"view_json_{key}"):
                     st.json(value)
+                st.write("**URL:**")
+                st.write(key)
                 # Display title if different from expander title
                 if "title" in value and value["title"] != expander_title:
                     st.subheader(value["title"])
@@ -227,13 +224,15 @@ def show_results(response_data):
                             # Extract the file extension before any URL parameters or encoding
                             url_base = url.split('?')[0]  # Remove query parameters
                             url_base = url_base.split('#')[0]  # Remove fragments
-                            url_lower = url_base.lower()
                             
-                            if url_lower.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp')):
+                            if url_lower.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp')) \
+                                or url_base.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp')):
                                 st.image(url)
-                            elif url_lower.endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv')):
+                            elif url_lower.endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv')) \
+                                    or url_base.endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv')):
                                 st.video(url)
-                            elif url_lower.endswith(('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac')):
+                            elif url_lower.endswith(('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac')) \
+                                    or url_base.endswith(('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac')):
                                 st.audio(url)
                             else:
                                 # Fallback for unknown types - display as link

@@ -334,7 +334,7 @@ async def list_links_with_descriptions_tool(
         url: str = Field(..., description="The page URL to scan for links"),
         include_anchor_text: bool = Field(True, description="Use the anchor text as description when available"),
         include_title_attribute: bool = Field(True, description="Use the <a title> or aria-label when available"),
-    fetch_linked_pages: bool = Field(False, description="Fetch each linked page to get meta description/title (slower)"),
+        fetch_linked_pages: bool = Field(True, description="Fetch each linked page to get meta description/title (slower)"),
         fetch_limit: int = Field(10, ge=1, le=50, description="When fetching linked pages, cap how many to fetch")
 ) -> str:
     """Generate a mapping of {link: description} found on the page.
@@ -361,6 +361,21 @@ async def list_links_with_descriptions_tool(
                 return True  # relative, will be joined below
             return p.scheme in {"http", "https"}
 
+        def has_meaningful_path(url: str) -> bool:
+            """Check if URL has at least 3 hyphens in the last path segment"""
+            parsed = urlparse(url)
+            path = parsed.path.rstrip('/')
+            if not path:
+                return False
+            last_segment = path.split('/')[-1]
+            return last_segment.count('-') >= 3
+
+        def is_same_domain(link_url: str, base_url: str) -> bool:
+            """Check if link URL is from the same domain as the base URL"""
+            link_domain = urlparse(link_url).netloc.lower()
+            base_domain = urlparse(base_url).netloc.lower()
+            return link_domain == base_domain
+
         # First pass: collect links and best local description
         ordered: list[tuple[str, str]] = []
         seen: set[str] = set()
@@ -381,6 +396,14 @@ async def list_links_with_descriptions_tool(
                 continue
             seen.add(normalized)
 
+            # Filter out URLs from different domains
+            if not is_same_domain(normalized, url):
+                continue
+
+            # Filter out URLs without meaningful paths (fewer than 3 hyphens in last segment)
+            if not has_meaningful_path(normalized):
+                continue
+
             desc_candidates: list[str] = []
             if include_title_attribute:
                 for attr in ('aria-label', 'title'):
@@ -392,16 +415,18 @@ async def list_links_with_descriptions_tool(
                 if txt:
                     desc_candidates.append(txt)
 
-            # choose first non-empty, prefer longer than 3 chars
-            description = next((d for d in desc_candidates if len(d) > 3), (desc_candidates[0] if desc_candidates else ''))
-            ordered.append((normalized, description))
+            # choose first non-empty, prefer longer than 10 chars for meaningful descriptions
+            description = next((d for d in desc_candidates if len(d) > 10), '')
+            # Only add if we have a meaningful description or if we plan to fetch linked pages
+            if description or fetch_linked_pages:
+                ordered.append((normalized, description))
 
         # Optional: enrich by fetching linked pages (limited)
         if fetch_linked_pages and ordered:
             to_enrich = ordered[: min(fetch_limit, len(ordered))]
             for i, (link_url, description) in enumerate(to_enrich):
-                # Only fetch if we don't already have a decent description
-                if description and len(description) >= 20:
+                # Only fetch if we don't already have a meaningful description
+                if description and len(description) >= 15:
                     continue
                 try:
                     linked_soup = scraper.fetch_with_fallback(link_url)
@@ -419,9 +444,11 @@ async def list_links_with_descriptions_tool(
             enriched_map = {u: d for (u, d) in to_enrich}
             ordered = [(u, (enriched_map.get(u) or d)) for (u, d) in ordered]
 
-        # Build mapping
+        # Build mapping - only include links with meaningful descriptions
         for link_url, description in ordered:
-            results[link_url] = description
+            # Filter out links with empty or very short descriptions
+            if description and len(description.strip()) >= 10:
+                results[link_url] = description
 
         return json.dumps(results, indent=2, ensure_ascii=False)
     except Exception as e:
