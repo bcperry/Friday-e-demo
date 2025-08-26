@@ -18,6 +18,7 @@ from semantic_kernel.contents import ChatMessageContent, StreamingChatMessageCon
 from semantic_kernel.connectors.ai.open_ai.prompt_execution_settings.azure_chat_prompt_execution_settings import (
     AzureChatPromptExecutionSettings,
 )
+from semantic_kernel.contents import ChatHistorySummarizationReducer
 
 from semantic_kernel.connectors.mcp import MCPStreamableHttpPlugin, MCPSsePlugin
 
@@ -36,23 +37,36 @@ class Agent:
         self.kernel = Kernel()
         self._setup_chat_completion(agent_definition)
         self.kernel.add_service(self.chat_completion)
-        self.thread: ChatHistoryAgentThread = None
+
+
+        self.system_message = agent_definition.get("system_message", "You are a helpful assistant. Use your tools to assist users.")
+        logging.debug(f"System message: {self.system_message}")
+        
+
+        # Suppose chat_service is your AzureChatCompletion service instance
+        chat_history_reducer = ChatHistorySummarizationReducer(
+            service=self.chat_completion,
+            target_count=10,               # keep 10 most recent messages in detail
+            threshold_count=5,             # allow a few extra before reducing
+            auto_reduce=True,              # auto-summarize when using async adds
+            include_function_content_in_summary=True,
+            system_message=self.system_message    # summarize function content if it exceeds 3 messages
+        )
+
+
+
+        self.thread = ChatHistoryAgentThread(chat_history=chat_history_reducer)
 
         self.mcp_server_objects = []
 
         self._setup_logging()
-    # NOTE: _setup_mcp_plugins is an async coroutine because connecting to MCP
-    # servers requires awaiting network operations. Do NOT call it here
-    # synchronously to avoid 'coroutine was never awaited' warnings. Use the
-    # async factory `Agent.create(...)` or call `await agent._setup_mcp_plugins(...)`
-    # from async code after constructing the instance.
         settings = self.kernel.get_prompt_execution_settings_from_service_id(service_id=self.service_id)
         # Configure the function choice behavior to auto invoke kernel functions
         settings.function_choice_behavior = FunctionChoiceBehavior.Auto(maximum_auto_invoke_attempts=15)
         settings.temperature = 0
-        logging.info(f"LLM settings: {settings}")
-        self.system_message = agent_definition.get("system_message", "You are a helpful assistant. Use your tools to assist users.")
-        logging.info(f"System message: {self.system_message}")
+        settings.max_tokens = 16384
+        logging.debug(f"LLM settings: {settings}")
+
 
         self.agent = ChatCompletionAgent(
             kernel = self.kernel, 
@@ -161,10 +175,8 @@ class Agent:
             for server in self.mcp_server_objects:
                 await server.connect()
 
-            arguments = KernelArguments(now=datetime.now().strftime("%Y-%m-%d %H:%M"))
-
-            async for response in self.agent.invoke(messages=user_input, thread=self.thread, arguments=arguments):
-                logging.info(f"{response.content}")
+            async for response in self.agent.invoke(messages=user_input, thread=self.thread):
+                logging.debug(f"Response content: {response.content}")
                 self.thread = response.thread
 
             # Display messages from the agent thread (agent.thread.get_messages() is an async generator)
@@ -173,13 +185,14 @@ class Agent:
                 i+=1
                 logging.info(f"{i}: Role: {message.role}")
                 if message.role == "tool":
-                    logging.info(f"{message.items[0].function_name}: \n\targs: {message.items[0].metadata['arguments']} \n\t\tresults: {message.items[0].result[0].text}")
-                logging.info(f"\t{message.content}")
+                    logging.info(f"\t{message.items[0].function_name}: \n\targs: {message.items[0].metadata['arguments']}")
+                else:
+                    logging.info(f"\t{message.content[:50]}")
 
             for server in self.mcp_server_objects:
                 # Attempt to close the server connection gracefully
                 try:
-                    logging.info(f"Closing MCP server connection: {server.name}")
+                    logging.debug(f"Closing MCP server connection: {server.name}")
                     await server.close()
                 except Exception as e:
                     logging.error(f"Failed to close server connection: {e}")

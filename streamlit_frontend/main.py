@@ -45,7 +45,7 @@ if agents:
         selected_topics = st.multiselect("Select Topics", topics)
 
         if selected_locations or selected_topics:
-            query = f"User query: {query}.[Locations: {', '.join(selected_locations)}] [Topics: {', '.join(selected_topics)}]"
+            query = f"Answer the user's query: {query}. focusing on articles from {', '.join(selected_locations)} which feature Topics {', '.join(selected_topics)}"
 
         if st.button("Submit Query"):
             if query:
@@ -60,7 +60,8 @@ if agents:
 
         # Display results from session state (outside the button callback)
         if 'query_result' in st.session_state and st.session_state.query_result:
-            # st.write("Query Result: ", st.session_state.query_result)
+            if st.checkbox("Show Raw Query Result", value=False):
+                st.write("Query Result: ", st.session_state.query_result)
             show_results(st.session_state.query_result)
 else:
     st.error("No agents available or backend is not accessible")

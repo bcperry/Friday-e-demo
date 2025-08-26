@@ -80,14 +80,14 @@ async def agent_endpoint(request: QueryRequest, agent_name: str = agents[0]):
         raise HTTPException(status_code=404, detail="Agent not found")
 
     logging.info(f"Creating agent: {agent_name}")
-    logging.info(f"Agent config: {agent_definition[agent_name]}")
+    logging.debug(f"Agent config: {agent_definition[agent_name]}")
     # Create agent
     agent = await Agent.create(agent_definition[agent_name])
 
     logging.info(f"Agent created: {agent_name}")
     try:
         result = await agent.run_agent(request.query)
-        logging.info("Received response from agent: %s", result)
+        logging.debug("Received response from agent: %s", result)
         
         # Check if the result contains a status_code indicating an error
         if isinstance(result, dict) and "status_code" in result:
