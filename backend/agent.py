@@ -27,7 +27,10 @@ import json
 import os
 from dotenv import load_dotenv
 
-
+async def test(agent):
+    logging.info("\n\n\nTest started\n\n\n")
+    logging.info(f'{[{"role": message.role, "content": message.content} for message in agent.thread._chat_history.messages]}')
+    logging.info("\n\n\nTest completed\n\n\n")
 
 class Agent:
     def __init__(self, agent_definition: dict):
@@ -44,18 +47,18 @@ class Agent:
         
 
         # Suppose chat_service is your AzureChatCompletion service instance
-        chat_history_reducer = ChatHistorySummarizationReducer(
+        self.chat_history_reducer = ChatHistorySummarizationReducer(
             service=self.chat_completion,
-            target_count=10,               # keep 10 most recent messages in detail
+            target_count=7,               # keep most recent messages in detail
             threshold_count=5,             # allow a few extra before reducing
             auto_reduce=True,              # auto-summarize when using async adds
-            include_function_content_in_summary=True,
-            system_message=self.system_message    # summarize function content if it exceeds 3 messages
+            include_function_content_in_summary=True, # summarize function content
+            system_message=self.system_message   
         )
 
 
 
-        self.thread = ChatHistoryAgentThread(chat_history=chat_history_reducer)
+        self.thread = ChatHistoryAgentThread(chat_history=self.chat_history_reducer)
 
         self.mcp_server_objects = []
 
@@ -175,9 +178,47 @@ class Agent:
             for server in self.mcp_server_objects:
                 await server.connect()
 
-            async for response in self.agent.invoke(messages=user_input, thread=self.thread):
-                logging.debug(f"Response content: {response.content}")
-                self.thread = response.thread
+            # async for response in self.agent.invoke(messages=user_input, 
+            #                                         thread=self.thread,
+            #                                         on_intermediate_message=await test(self)):
+
+            #     msg: ChatMessageContent = response.message
+            #     logging.info(f"msg.role: {msg.role}, msg.content: {msg.content}")
+
+            #     # (optional) observe what's happening
+            #     # print(f"[{msg.role}] {msg.content or ''}")
+
+            #     # Heuristic: when the agent just emitted a tool call or we've just appended tool results,
+            #     # proactively reduce history before the next model call.
+            #     if msg.items:
+            #         logging.info(f"msg.items: {msg.items}")
+            #         has_tool_signal = any(isinstance(x, (FunctionCallContent, FunctionResultContent)) for x in msg.items)
+            #         logging.info(f"Message has tool signal: {has_tool_signal}")
+            #         if has_tool_signal:
+            #             reduced = await self.chat_history_reducer.reduce()  # returns Self or None
+            #             logging.info("Reduced")
+            #         else:
+            #             logging.info("No reduction")
+            
+            # 1) First step: send the user input
+            response = await self.agent.get_response(messages=user_input, thread=self.thread)
+            await self.chat_history_reducer.reduce()  # summarize/truncate before the next step
+            await test(self)
+            # 2) Continue stepping until the model returns a final, non-tool answer
+            while True:
+                # No new user message; let the agent continue the tool loop 1 step at a time
+                response = await self.agent.get_response(messages=None, thread=self.thread)
+                # You can inspect response.message.items here if you wish
+                await self.chat_history_reducer.reduce()
+
+                # (Optional) detect finality (no further tool calls)
+                logging.info(f"Agent response: {response}")
+                await test(self)
+                msg = response.message
+                has_tool_call = any(isinstance(x, FunctionCallContent) for x in (msg.items or []))
+                if not has_tool_call and msg.role.name.lower() == "assistant":
+                    break
+
 
             # Display messages from the agent thread (agent.thread.get_messages() is an async generator)
             i=0

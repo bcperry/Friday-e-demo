@@ -45,7 +45,7 @@ if agents:
         selected_topics = st.multiselect("Select Topics", topics)
 
         if selected_locations or selected_topics:
-            query = f"Answer the user's query: {query}. focusing on articles from {', '.join(selected_locations)} which feature Topics {', '.join(selected_topics)}"
+            query = f"Answer the user's query: {query}. They would like to focus on articles from: {', '.join(selected_locations)}, which are related to their query and include the following topics: {', '.join(selected_topics)}. Do not include things not related to these topics."
 
         if st.button("Submit Query"):
             if query:
